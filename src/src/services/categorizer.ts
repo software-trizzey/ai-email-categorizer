@@ -56,8 +56,6 @@ function buildQuoteCheckPrompt(subject: string, body: string): string {
 }
 
 export async function categorizeEmail(email: IncomingEmailData): Promise<CategorizationResult | null> {
-    console.log("incoming email", email);
-    
     const model = getModel('openai', 'gpt-4o-mini');
     let prompt = '';
     try {

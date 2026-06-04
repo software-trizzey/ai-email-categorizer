@@ -1,7 +1,6 @@
 # AI Email Categorizer
 
-
-Goal: a system that accepts emails and categorizes them based on intent. 
+A system that ingests emails and categorizes them based on intent. To make this interesting i'm mapping it to a real world usecase where it will determine if the email is asking for a quote/estimate from a business. If the system confirms that's the sender's intent it will alert the admins of that business via their preferred notification channel (SMS, Slack. Discord, Email, etc.)
 
 
 ## System

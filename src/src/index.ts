@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { Resend } from 'resend'
 
 import { categorizeEmail } from './services/categorizer'
+import { redactPii, sanitizeEmailBody } from './utils/pii'
 
 const app = new Hono()
 
@@ -47,8 +48,8 @@ app.post('/inbound-email', async (context) => {
     }
     
     const emailToCategorize = {
-      subject: email.subject,
-      body: email.text || '',
+      subject: redactPii(email.subject),
+      body: sanitizeEmailBody(email.text || ''),
       // metadata: { ...email } // FIXME: remove customer PII
     };
     const categorizationResult = await categorizeEmail(emailToCategorize);
