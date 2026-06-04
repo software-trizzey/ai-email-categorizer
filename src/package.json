@@ -1,0 +1,14 @@
+{
+  "name": "src",
+  "scripts": {
+    "dev": "bun run --hot src/index.ts"
+  },
+  "dependencies": {
+    "@earendil-works/pi-ai": "^0.78.1",
+    "hono": "^4.12.23",
+    "resend": "^6.12.4"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}
