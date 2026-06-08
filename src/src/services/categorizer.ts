@@ -1,4 +1,3 @@
-import { JSON5 } from "bun";
 import { complete, getModel, Context, ProviderStreamOptions } from "@earendil-works/pi-ai";
 import {
     findServiceType,
@@ -35,7 +34,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function parseCategorizerResponse(text: string): CategorizationResult {
     const normalizedText = normalizeJsonResponse(text);
-    const parsed: unknown = JSON5.parse(normalizedText);
+    const parsed: unknown = JSON.parse(normalizedText);
 
     if (!isRecord(parsed)) {
         throw new CategorizerParseError("Categorizer response was not a JSON object", { parsed });
