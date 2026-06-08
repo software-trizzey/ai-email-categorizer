@@ -104,7 +104,8 @@ app.post('/inbound-email', async (context) => {
       const quoteData = {
         customerEmail: email.from,
         emailSubject: email.subject,
-        serviceType: categorizationResult.serviceType
+        serviceType: categorizationResult.serviceType.label,
+        summary: categorizationResult.description
       };
 
       await sendNotification("discord", {
