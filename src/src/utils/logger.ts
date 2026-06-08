@@ -21,7 +21,7 @@ function writeLog(level: "info" | "warn" | "error", message: string, error?: unk
         ...(error ? { error: serializeError(error) } : {}),
     };
 
-    const serializedLogEntry = JSON.stringify(logEntry, null, 2);
+    const serializedLogEntry = JSON.stringify(logEntry);
 
     if (level === "error") {
         console.error(serializedLogEntry);

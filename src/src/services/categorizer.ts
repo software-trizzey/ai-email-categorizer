@@ -209,6 +209,7 @@ export async function categorizeEmail(email: IncomingEmailData): Promise<Categor
         stopReason: response.stopReason,
         usage: response.usage,
         contentBlockCount: response.content.length,
+        errorMessage: response.errorMessage,
     });
 
     for (const block of response.content) {
@@ -226,8 +227,12 @@ export async function categorizeEmail(email: IncomingEmailData): Promise<Categor
     }
 
     logWarn("Categorizer response did not contain any parseable text blocks", {
+        stopReason: response.stopReason,
+        errorMessage: response.errorMessage,
         content: response.content,
     });
 
-    throw new Error("There was a problem parsing categorization results");
+    throw new Error(response.errorMessage
+        ? `There was a problem parsing categorization results: ${response.errorMessage}`
+        : "There was a problem parsing categorization results");
 }
