@@ -4,10 +4,24 @@ import { Resend, WebhookEventPayload } from 'resend'
 import { categorizeEmail } from './services/categorizer'
 import { redactPii, sanitizeEmailBody } from './utils/pii'
 import { sendNotification } from 'services/notification'
+import { logError, logInfo } from './utils/logger'
 
 const app = new Hono()
 
 const resend = new Resend(process.env.RESEND_API_KEY);
+
+app.onError((error, context) => {
+  logError("Unhandled request error", error, {
+    method: context.req.method,
+    path: context.req.path,
+  });
+
+  return context.json({
+    ok: false,
+    status: 500,
+    message: "Internal server error",
+  }, 500);
+});
 
 app.get('/health', (context) => {
     return context.json({
@@ -18,17 +32,31 @@ app.get('/health', (context) => {
 })
 
 async function verifyRequest(request: HonoRequest): Promise<WebhookEventPayload> {
- const result = resend.webhooks.verify({
+  const result = resend.webhooks.verify({
     payload: await request.text(),
     headers: {
       id: request.header('svix-id') || '',
       timestamp: request.header('svix-timestamp') || '',
       signature: request.header('svix-signature') || '',
     },
-    webhookSecret: process.env.RESEND_WEBHOOK_SECRET!,
+    webhookSecret: getResendWebhookSecret(),
   });
 
   return result;
+}
+
+function getResendWebhookSecret(): string {
+  const webhookSecret = process.env.RESEND_WEBHOOK_SECRET?.trim();
+
+  if (!webhookSecret) {
+    throw new Error("Missing required environment variable: RESEND_WEBHOOK_SECRET");
+  }
+
+  if (webhookSecret.startsWith("re_")) {
+    throw new Error("RESEND_WEBHOOK_SECRET is set to a Resend API key. Use the webhook signing secret instead.");
+  }
+
+  return webhookSecret;
 }
 
 app.post('/inbound-email', async (context) => {
@@ -36,7 +64,7 @@ app.post('/inbound-email', async (context) => {
   try {
       verificationResult = await verifyRequest(context.req);
     } catch (error: unknown) {
-      console.log(error);
+      logError("Invalid inbound email webhook", error);
       return context.json({
         ok: false,
         status: 400,
@@ -48,7 +76,7 @@ app.post('/inbound-email', async (context) => {
     const { data: email, error } = await resend.emails.receiving.get(verificationResult.data.email_id);
 
     if (error) {
-      console.error("Error fetching email:", error);
+      logError("Error fetching email from Resend", error);
       return context.json({
         ok: false,
         status: 500,
@@ -72,8 +100,7 @@ app.post('/inbound-email', async (context) => {
     }
   
     if (categorizationResult.confidenceScore > 0.7) {
-      console.log("Send alert to subscribed admins");
-      
+      logInfo("Sending alert to subscribed admins");      
       const quoteData = {
         customerEmail: email.from,
         emailSubject: email.subject,
