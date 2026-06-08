@@ -6,10 +6,8 @@ services:
     plan: starter
     autoDeploy: true
     healthCheckPath: /health
-    buildCommand: |
-      curl -fsSL https://bun.sh/install | bash
-      ~/.bun/bin/bun install --frozen-lockfile
-    startCommand: ~/.bun/bin/bun run --port $PORT src/index.ts
+    buildCommand: bun install --frozen-lockfile
+    startCommand: bun run --port $PORT src/index.ts
     envVars:
       - key: NODE_ENV
         value: production
