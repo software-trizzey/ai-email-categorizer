@@ -8,8 +8,12 @@ const app = new Hono()
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-app.get('/', (context) => {
-  return context.text('Hello Hono!')
+app.get('/health', (context) => {
+    return context.json({
+      ok: true, 
+      status: 200,
+      meessage: "Service up"
+    });
 })
 
 app.post('/inbound-email', async (context) => {
