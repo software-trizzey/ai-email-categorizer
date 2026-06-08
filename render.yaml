@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: ai-email-categorizer
+    runtime: node
+    rootDir: src
+    plan: starter
+    autoDeploy: true
+    healthCheckPath: /health
+    buildCommand: |
+      curl -fsSL https://bun.sh/install | bash
+      ~/.bun/bin/bun install --frozen-lockfile
+    startCommand: ~/.bun/bin/bun run --port $PORT src/index.ts
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_WEBHOOK_SECRET
+        sync: false
+      - key: DISCORD_WEBHOOK_URL
+        sync: false
