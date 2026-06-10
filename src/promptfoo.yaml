@@ -1,0 +1,58 @@
+description: Email categorizer - model accuracy and cost comparison
+
+prompts:
+  - file://evals/categorizer.prompt.txt
+
+# Run with the provider filters below to keep costs low while iterating, e.g.
+# bun run eval:categorizer -- --filter-providers 'gpt-5-nano|claude-haiku-4-5|gemini-2.5-flash-lite'
+providers:
+  # OpenAI
+  - id: openai:gpt-4o-mini
+    label: openai/gpt-4o-mini
+    config:
+      temperature: 0
+      response_format: file://evals/categorizer-response-format.json
+  - id: openai:gpt-4.1-mini
+    label: openai/gpt-4.1-mini
+    config:
+      temperature: 0
+      response_format: file://evals/categorizer-response-format.json
+  - id: openai:gpt-4.1-nano
+    label: openai/gpt-4.1-nano
+    config:
+      temperature: 0
+      response_format: file://evals/categorizer-response-format.json
+  - id: openai:gpt-5-mini
+    label: openai/gpt-5-mini
+    config:
+      temperature: 0
+      response_format: file://evals/categorizer-response-format.json
+  - id: openai:gpt-5-nano
+    label: openai/gpt-5-nano
+    config:
+      temperature: 0
+      response_format: file://evals/categorizer-response-format.json
+
+  # Anthropic
+  - id: anthropic:messages:claude-haiku-4-5-20251001
+    label: anthropic/claude-haiku-4-5
+    config:
+      temperature: 0
+      max_tokens: 400
+
+  # Google Gemini
+  - id: google:gemini-2.5-flash-lite
+    label: google/gemini-2.5-flash-lite
+    config:
+      temperature: 0
+  - id: google:gemini-2.5-flash
+    label: google/gemini-2.5-flash
+    config:
+      temperature: 0
+
+defaultTest:
+  assert:
+    - type: javascript
+      value: file://evals/assert-categorization.js
+
+tests: file://evals/categorizer-tests.csv

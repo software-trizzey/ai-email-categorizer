@@ -8,11 +8,20 @@ import {
 } from "./service-types";
 import { logError, logInfo, logWarn } from "../utils/logger";
 
-interface IncomingEmailData {
+export interface IncomingEmailData {
     subject: string;
     body: string;
     metadata?: unknown; // TODO: store this data as is
 }
+
+export interface CategorizerModelOptions {
+    provider?: string;
+    model?: string;
+    apiKey?: string;
+    temperature?: number;
+}
+
+export const CATEGORIZER_SYSTEM_PROMPT = "You are an email categorization specialist that reviews inbound emails and determines their intent.";
 
 export interface CategorizationResult {
     description: string;
@@ -150,14 +159,16 @@ function withCategorizerJsonSchema(payload: unknown): unknown {
     };
 }
 
-function buildQuoteCheckPrompt(subject: string, body: string): string {
+export function buildQuoteCheckPrompt(subject: string, body: string): string {
     if (!subject || !body) throw new Error("Invalid input detected. Please provide an email subject and body");
 
     return `
         Determine if the provided email is asking for a quote/estimate from the business based on the subject and body contents.
-        For valid requests, infer the most likely service type from the serviceTypes list below.
-        The serviceTypeId field must be exactly one of the ids from serviceTypes. Use "${UNKNOWN_SERVICE_TYPE_ID}" if the requested service is unclear or does not match the list.
-        The confidenceScore field must be a number between 0 and 1.
+        For valid quote/estimate requests, infer the most likely service type from the serviceTypes list below.
+        The serviceTypeId field must be exactly one of the ids from serviceTypes. Use "${UNKNOWN_SERVICE_TYPE_ID}" if the requested service is unclear, does not match the list, or the email is not asking for a quote/estimate.
+        If the email is not asking for a quote/estimate, set serviceTypeId to "${UNKNOWN_SERVICE_TYPE_ID}", use a confidenceScore of 0.3 or lower, and explain that this is not a quote request.
+        If serviceTypeId is "${UNKNOWN_SERVICE_TYPE_ID}", use a confidenceScore below 0.7 so callers do not treat it as an actionable service request.
+        The confidenceScore field must be a number between 0 and 1 that reflects confidence in both quote intent and service type.
 
         serviceTypes:
         ${JSON.stringify(serviceTypePromptOptions, null, 2)}
@@ -177,8 +188,22 @@ function buildQuoteCheckPrompt(subject: string, body: string): string {
     `;
 }
 
-export async function categorizeEmail(email: IncomingEmailData): Promise<CategorizationResult | null> {
-    const model = getModel("openai", "gpt-4o-mini");
+function getDefaultApiKey(provider: string): string | undefined {
+    switch (provider) {
+        case "anthropic": return process.env.ANTHROPIC_API_KEY;
+        case "google": return process.env.GEMINI_API_KEY;
+        case "openai":
+        default: return process.env.OPENAI_API_KEY;
+    }
+}
+
+export async function categorizeEmail(
+    email: IncomingEmailData,
+    options: CategorizerModelOptions = {},
+): Promise<CategorizationResult | null> {
+    const provider = options.provider ?? process.env.CATEGORIZER_PROVIDER ?? "openai";
+    const modelId = options.model ?? process.env.CATEGORIZER_MODEL ?? "gpt-4o-mini";
+    const model = getModel(provider as never, modelId as never);
     let prompt = "";
     try {
         prompt = buildQuoteCheckPrompt(email.subject, email.body);
@@ -188,13 +213,13 @@ export async function categorizeEmail(email: IncomingEmailData): Promise<Categor
     }
 
     const context: Context = {
-        systemPrompt: "You are an email categorization specialist that reviews inbound emails and determines their intent.",
+        systemPrompt: CATEGORIZER_SYSTEM_PROMPT,
         messages: [{ role: "user", content: prompt, timestamp: Date.now() }],
     };
 
     const requestOptions: ProviderStreamOptions = {
-        apiKey: process.env.OPENAI_API_KEY,
-        temperature: 0,
+        apiKey: options.apiKey ?? getDefaultApiKey(provider),
+        temperature: options.temperature ?? 0,
         onPayload: (payload, requestModel) => requestModel.api === "openai-responses"
             ? withCategorizerJsonSchema(payload)
             : payload,

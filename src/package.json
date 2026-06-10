@@ -1,7 +1,10 @@
 {
   "name": "src",
   "scripts": {
-    "dev": "bun run --hot src/index.ts"
+    "dev": "bun run --hot src/index.ts",
+    "eval:categorizer": "promptfoo eval -c promptfoo.yaml",
+    "eval:categorizer:service": "promptfoo eval -c promptfoo.service.yaml",
+    "eval:categorizer:view": "promptfoo view"
   },
   "dependencies": {
     "@earendil-works/pi-ai": "^0.78.1",
@@ -10,6 +13,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "promptfoo": "^0.121.15"
   }
 }

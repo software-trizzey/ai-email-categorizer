@@ -1,9 +1,14 @@
 {
   "compilerOptions": {
     "strict": true,
+    "target": "es2022",
+    "module": "preserve",
+    "skipLibCheck": true,
     "jsx": "react-jsx",
     "jsxImportSource": "hono/jsx",
-    "ignoreDeprecations": "6.0",
+    "resolveJsonModule": true,
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
     "baseUrl": ".",
     "paths": {
       "services/*": ["src/services/*"],

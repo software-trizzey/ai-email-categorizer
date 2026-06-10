@@ -1,33 +1,18 @@
-export const serviceTypes = [
-    {
-        id: "stumpGrinding",
-        label: "Stump grinding",
-        description: "Grinding an existing stump down below grade while leaving the roots in place.",
-    },
-    {
-        id: "stumpRemoval",
-        label: "Stump removal",
-        description: "Removing or extracting the stump from the ground, usually including the root ball.",
-    },
-    {
-        id: "rootRemoval",
-        label: "Root removal",
-        description: "Removing exposed, invasive, or leftover tree roots without necessarily removing a stump.",
-    },
-    {
-        id: "treePruning",
-        label: "Tree pruning",
-        description: "Trimming, pruning, or cutting limbs/branches on a standing tree.",
-    },
-    {
-        id: "unknown",
-        label: "Unknown or not listed",
-        description: "Use when the requested service is unclear or does not match any listed service type.",
-    },
-] as const;
+import serviceTypeDefinitions from "./service-types.json";
 
-export type ServiceType = (typeof serviceTypes)[number];
-export type ServiceTypeId = ServiceType["id"];
+export type ServiceTypeId = Extract<keyof typeof serviceTypeDefinitions, string>;
+type ServiceTypeDefinition = (typeof serviceTypeDefinitions)[ServiceTypeId];
+
+const serviceTypeEntries = Object.entries(serviceTypeDefinitions) as Array<[ServiceTypeId, ServiceTypeDefinition]>;
+
+export type ServiceType = {
+    [Id in ServiceTypeId]: { id: Id } & (typeof serviceTypeDefinitions)[Id];
+}[ServiceTypeId];
+
+export const serviceTypes: ServiceType[] = serviceTypeEntries.map(([id, definition]) => ({
+    id,
+    ...definition,
+}));
 
 export const UNKNOWN_SERVICE_TYPE_ID: ServiceTypeId = "unknown";
 
