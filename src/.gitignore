@@ -3,5 +3,9 @@ node_modules/
 .promptfoo/
 evals/results/
 
+# generated eval assets
+evals/categorizer.prompt.txt
+evals/categorizer-response-format.json
+
 .env
 .env.local

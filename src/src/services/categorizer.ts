@@ -3,10 +3,24 @@ import {
     findServiceType,
     ServiceType,
     ServiceTypeId,
-    serviceTypePromptOptions,
-    UNKNOWN_SERVICE_TYPE_ID,
 } from "./service-types";
+import {
+    categorizerOpenAiResponsesFormat,
+    createSafeCategorizerOutput,
+    validateCategorizerOutput,
+    type CategorizerOutput,
+} from "./categorizer-contract";
+import {
+    buildCategorizerUserPrompt,
+    CATEGORIZER_SYSTEM_PROMPT,
+} from "./categorizer-prompt";
 import { logError, logInfo, logWarn } from "../utils/logger";
+
+export {
+    buildCategorizerUserPrompt,
+    buildCategorizerUserPrompt as buildQuoteCheckPrompt,
+    CATEGORIZER_SYSTEM_PROMPT,
+} from "./categorizer-prompt";
 
 export interface IncomingEmailData {
     subject: string;
@@ -21,14 +35,12 @@ export interface CategorizerModelOptions {
     temperature?: number;
 }
 
-export const CATEGORIZER_SYSTEM_PROMPT = "You are an email categorization specialist that reviews inbound emails and determines their intent.";
+const SAFE_CATEGORIZER_ALERT_REASON = "Categorizer response could not be parsed or validated; no admin alert sent.";
 
-export interface CategorizationResult {
-    description: string;
+export type CategorizationResult = CategorizerOutput & {
     serviceTypeId: ServiceTypeId;
     serviceType: ServiceType;
-    confidenceScore: number;
-}
+};
 
 class CategorizerParseError extends Error {
     constructor(message: string, public details: Record<string, unknown>) {
@@ -38,7 +50,7 @@ class CategorizerParseError extends Error {
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null;
+    return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function parseCategorizerResponse(text: string): CategorizationResult {
@@ -49,28 +61,25 @@ function parseCategorizerResponse(text: string): CategorizationResult {
         throw new CategorizerParseError("Categorizer response was not a JSON object", { parsed });
     }
 
-    const explanation = getStringValue(parsed, ["explanation", "description", "reason"]);
-    const confidenceScore = normalizeConfidenceScore(parsed.confidenceScore ?? parsed.confidence ?? parsed.score);
-    const serviceType = findServiceType(parsed.serviceTypeId ?? parsed.serviceType ?? parsed.requestedService);
+    return toCategorizationResult(validateCategorizerOutput(parsed));
+}
 
-    if (!explanation) {
-        throw new CategorizerParseError("Categorizer response did not include an explanation", { parsed });
-    }
-
-    if (confidenceScore === null) {
-        throw new CategorizerParseError("Categorizer response did not include a valid confidence score", { parsed });
-    }
+function toCategorizationResult(output: CategorizerOutput): CategorizationResult {
+    const serviceType = findServiceType(output.serviceTypeId);
 
     if (!serviceType) {
-        throw new CategorizerParseError("Categorizer response did not include a valid service type", { parsed });
+        throw new CategorizerParseError("Categorizer response included an unknown service type", { output });
     }
 
     return {
-        description: explanation,
+        ...output,
         serviceTypeId: serviceType.id,
         serviceType,
-        confidenceScore,
     };
+}
+
+function createSafeCategorizationResult(alertReason = SAFE_CATEGORIZER_ALERT_REASON): CategorizationResult {
+    return toCategorizationResult(createSafeCategorizerOutput(alertReason));
 }
 
 function normalizeJsonResponse(text: string): string {
@@ -94,38 +103,6 @@ function normalizeJsonResponse(text: string): string {
     return withoutFence;
 }
 
-function getStringValue(record: Record<string, unknown>, keys: string[]): string | null {
-    for (const key of keys) {
-        const value = record[key];
-
-        if (typeof value === "string" && value.trim()) {
-            return value.trim();
-        }
-    }
-
-    return null;
-}
-
-function normalizeConfidenceScore(value: unknown): number | null {
-    const numericValue = typeof value === "number"
-        ? value
-        : typeof value === "string"
-            ? Number(value.replace("%", "").trim())
-            : NaN;
-
-    if (!Number.isFinite(numericValue)) return null;
-
-    if (numericValue >= 0 && numericValue <= 1) {
-        return numericValue;
-    }
-
-    if (numericValue > 1 && numericValue <= 100) {
-        return numericValue / 100;
-    }
-
-    return null;
-}
-
 function withCategorizerJsonSchema(payload: unknown): unknown {
     if (!isRecord(payload)) return payload;
 
@@ -133,59 +110,9 @@ function withCategorizerJsonSchema(payload: unknown): unknown {
         ...payload,
         text: {
             ...(isRecord(payload.text) ? payload.text : {}),
-            format: {
-                type: "json_schema",
-                name: "email_categorization",
-                strict: true,
-                schema: {
-                    type: "object",
-                    additionalProperties: false,
-                    properties: {
-                        explanation: { type: "string" },
-                        serviceTypeId: {
-                            type: "string",
-                            enum: serviceTypePromptOptions.map(({ id }) => id),
-                        },
-                        confidenceScore: {
-                            type: "number",
-                            minimum: 0,
-                            maximum: 1,
-                        },
-                    },
-                    required: ["explanation", "serviceTypeId", "confidenceScore"],
-                },
-            },
+            format: categorizerOpenAiResponsesFormat,
         },
     };
-}
-
-export function buildQuoteCheckPrompt(subject: string, body: string): string {
-    if (!subject || !body) throw new Error("Invalid input detected. Please provide an email subject and body");
-
-    return `
-        Determine if the provided email is asking for a quote/estimate from the business based on the subject and body contents.
-        For valid quote/estimate requests, infer the most likely service type from the serviceTypes list below.
-        The serviceTypeId field must be exactly one of the ids from serviceTypes. Use "${UNKNOWN_SERVICE_TYPE_ID}" if the requested service is unclear, does not match the list, or the email is not asking for a quote/estimate.
-        If the email is not asking for a quote/estimate, set serviceTypeId to "${UNKNOWN_SERVICE_TYPE_ID}", use a confidenceScore of 0.3 or lower, and explain that this is not a quote request.
-        If serviceTypeId is "${UNKNOWN_SERVICE_TYPE_ID}", use a confidenceScore below 0.7 so callers do not treat it as an actionable service request.
-        The confidenceScore field must be a number between 0 and 1 that reflects confidence in both quote intent and service type.
-
-        serviceTypes:
-        ${JSON.stringify(serviceTypePromptOptions, null, 2)}
-
-        Return only valid JSON. Do not include markdown, comments, or explanatory text outside the JSON.
-
-        Expected response format:
-        {
-            "explanation": "The sender is asking the business for a quote.",
-            "serviceTypeId": "stumpGrinding",
-            "confidenceScore": 0.7
-        }
-
-        Input:
-        Subject: ${subject}
-        Email Body: ${body}
-    `;
 }
 
 function getDefaultApiKey(provider: string): string | undefined {
@@ -206,7 +133,7 @@ export async function categorizeEmail(
     const model = getModel(provider as never, modelId as never);
     let prompt = "";
     try {
-        prompt = buildQuoteCheckPrompt(email.subject, email.body);
+        prompt = buildCategorizerUserPrompt(email.subject, email.body);
     } catch (error: unknown) {
         logError("Failed to build categorizer prompt", error);
         return null;
@@ -250,13 +177,16 @@ export async function categorizeEmail(
         }
     }
 
-    logWarn("Categorizer response did not contain any parseable text blocks", {
+    const alertReason = response.errorMessage
+        ? `${SAFE_CATEGORIZER_ALERT_REASON} Model error: ${response.errorMessage}`
+        : SAFE_CATEGORIZER_ALERT_REASON;
+
+    logWarn("Categorizer response did not contain any parseable text blocks; returning safe non-alert result", {
         stopReason: response.stopReason,
         errorMessage: response.errorMessage,
         content: response.content,
+        alertReason,
     });
 
-    throw new Error(response.errorMessage
-        ? `There was a problem parsing categorization results: ${response.errorMessage}`
-        : "There was a problem parsing categorization results");
+    return createSafeCategorizationResult(alertReason);
 }

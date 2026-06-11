@@ -11,15 +11,18 @@ function extractJson(output) {
     .replace(/\s*```$/i, "")
     .trim();
 
-  const candidate = withoutFence.startsWith("{") && withoutFence.endsWith("}")
-    ? withoutFence
-    : withoutFence.slice(withoutFence.indexOf("{"), withoutFence.lastIndexOf("}") + 1);
+  if (withoutFence.startsWith("{") && withoutFence.endsWith("}")) {
+    return JSON.parse(withoutFence);
+  }
 
-  if (!candidate || candidate === withoutFence.slice(0, 0)) {
+  const jsonStartIndex = withoutFence.indexOf("{");
+  const jsonEndIndex = withoutFence.lastIndexOf("}");
+
+  if (jsonStartIndex === -1 || jsonEndIndex <= jsonStartIndex) {
     throw new Error("No JSON object found in model output");
   }
 
-  return JSON.parse(candidate);
+  return JSON.parse(withoutFence.slice(jsonStartIndex, jsonEndIndex + 1));
 }
 
 function asNumber(value) {
@@ -37,6 +40,16 @@ function asExpectedIds(vars) {
     return [vars.expectedServiceTypeId.trim()];
   }
   return [];
+}
+
+function asBoolean(value) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "true") return true;
+    if (normalized === "false") return false;
+  }
+  return undefined;
 }
 
 module.exports = (output, context) => {
@@ -75,6 +88,21 @@ module.exports = (output, context) => {
     failures.push("confidenceScore must be a number between 0 and 1");
   }
 
+  if (typeof parsed.shouldAlertAdmin !== "boolean") {
+    failures.push("shouldAlertAdmin must be a boolean");
+  }
+
+  if (typeof parsed.alertReason !== "string" || parsed.alertReason.trim().length === 0) {
+    failures.push("alertReason must be a non-empty string");
+  }
+
+  const expectedShouldNotify = asBoolean(vars.expectedShouldNotify);
+  if (expectedShouldNotify === undefined) {
+    failures.push("expectedShouldNotify test variable must be true or false");
+  } else if (typeof parsed.shouldAlertAdmin === "boolean" && parsed.shouldAlertAdmin !== expectedShouldNotify) {
+    failures.push(`expected shouldAlertAdmin ${expectedShouldNotify}, got ${parsed.shouldAlertAdmin}`);
+  }
+
   const expectedIds = asExpectedIds(vars);
   if (expectedIds.length > 0 && !expectedIds.includes(parsed.serviceTypeId)) {
     failures.push(`expected serviceTypeId ${expectedIds.join(" or ")}, got ${parsed.serviceTypeId}`);
@@ -90,14 +118,18 @@ module.exports = (output, context) => {
     failures.push(`expected confidenceScore <= ${maxConfidence}, got ${confidenceScore}`);
   }
 
-  const checks = 6 + (expectedIds.length > 0 ? 1 : 0) + (minConfidence !== undefined ? 1 : 0) + (maxConfidence !== undefined ? 1 : 0);
+  const checks = 6
+    + (expectedShouldNotify !== undefined ? 1 : 0)
+    + (expectedIds.length > 0 ? 1 : 0)
+    + (minConfidence !== undefined ? 1 : 0)
+    + (maxConfidence !== undefined ? 1 : 0);
   const score = Math.max(0, (checks - failures.length) / checks);
 
   return {
     pass: failures.length === 0,
     score,
     reason: failures.length === 0
-      ? `Parsed ${parsed.serviceTypeId} at confidence ${parsed.confidenceScore}`
+      ? `Parsed ${parsed.serviceTypeId} at confidence ${parsed.confidenceScore}; shouldAlertAdmin=${parsed.shouldAlertAdmin}`
       : `${failures.join("; ")}\nParsed output: ${JSON.stringify(parsed)}`,
   };
 };

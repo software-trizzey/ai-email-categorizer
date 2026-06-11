@@ -73,9 +73,11 @@ app.post('/eval/categorize', async (context) => {
     ok: true,
     status: 200,
     result: {
-      explanation: result.description,
+      explanation: result.explanation,
       serviceTypeId: result.serviceTypeId,
       confidenceScore: result.confidenceScore,
+      shouldAlertAdmin: result.shouldAlertAdmin,
+      alertReason: result.alertReason,
       serviceType: result.serviceType,
     },
   });

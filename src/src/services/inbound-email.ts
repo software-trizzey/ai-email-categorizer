@@ -40,18 +40,28 @@ export async function processInboundEmail(emailId: string): Promise<void> {
             throw new Error("There was a problem categorizing the email");
         }
     
-        if (categorizationResult.confidenceScore > 0.7) {
-            logInfo("Sending alert to subscribed admins", { emailId });      
+        if (categorizationResult.shouldAlertAdmin === true) {
+            logInfo("Sending alert to subscribed admins", {
+                emailId,
+                alertReason: categorizationResult.alertReason,
+            });
             const quoteData = {
                 customerEmail: email.from,
                 emailSubject: email.subject,
                 serviceType: categorizationResult.serviceType.label,
-                summary: categorizationResult.description
+                summary: categorizationResult.explanation
             };
 
             await sendNotification("discord", {
                 title: "New estimate request received",
                 data: quoteData,
+            });
+        } else {
+            logInfo("Categorizer result did not require an admin alert", {
+                emailId,
+                serviceTypeId: categorizationResult.serviceTypeId,
+                confidenceScore: categorizationResult.confidenceScore,
+                alertReason: categorizationResult.alertReason,
             });
         }
 
