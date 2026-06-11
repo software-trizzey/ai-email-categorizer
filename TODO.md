@@ -14,10 +14,10 @@ The goal is to ship a useful baseline quickly, then use real-world inbound email
 
 ### Ship-now eval baseline
 
-Reviewed setup first: the app is a Bun + Hono TypeScript service under `src/`; production categorization lives in `src/src/services/categorizer.ts`; inbound admin alerts are sent from `src/src/services/inbound-email.ts`; Promptfoo evals live in `src/evals/` with direct-provider config in `src/promptfoo.yaml` and local-service config in `src/promptfoo.service.yaml`. The response contract and prompt text now come from shared TypeScript sources, with Promptfoo artifacts generated before direct-provider evals.
+Reviewed setup first: the app is a Bun + Hono TypeScript service at the repo root; production categorization lives in `src/services/categorizer.ts`; inbound admin alerts are sent from `src/services/inbound-email.ts`; Promptfoo evals live in `evals/` with direct-provider config in `promptfoo.yaml` and local-service config in `promptfoo.service.yaml`. The response contract and prompt text now come from shared TypeScript sources, with Promptfoo artifacts generated before direct-provider evals.
 
 - [x] Create the shared categorizer contract.
-  - [x] Add a single contract module, e.g. `src/src/services/categorizer-contract.ts`, that owns the output fields, Zod validation, and JSON schema/response-format shape.
+  - [x] Add a single contract module, e.g. `src/services/categorizer-contract.ts`, that owns the output fields, Zod validation, and JSON schema/response-format shape.
   - [x] Include ship-now fields: `explanation`, `serviceTypeId`, `confidenceScore`, `shouldAlertAdmin`, and `alertReason`.
   - [x] Treat parser/validation failures as a safe non-alert result in caller-facing code.
 
@@ -41,7 +41,7 @@ Reviewed setup first: the app is a Bun + Hono TypeScript service under `src/`; p
   - [x] Verify parser errors are observable/logged, and no admin alert can be sent from malformed or invalid output.
 
 - [x] Verify before checking off the ship-now baseline.
-  - [x] From `src/`: run `bun test` for parser/contract fixtures.
+  - [x] From the repo root: run `bun test` for parser/contract fixtures.
   - [x] Run `bun run eval:categorizer -- --filter-first-n 3` while iterating, then the full direct-provider eval. The full suite now passes after the multi-service prompt clarification.
   - [x] Start `ENABLE_EVAL_ENDPOINTS=true bun run dev` and run a no-cache `bun run eval:categorizer:service -- --filter-first-n 1` smoke check to confirm the real service path matches the direct eval contract.
 

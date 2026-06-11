@@ -2,7 +2,6 @@ services:
   - type: web
     name: ai-email-categorizer
     runtime: node
-    rootDir: src
     plan: starter
     autoDeploy: true
     healthCheckPath: /health

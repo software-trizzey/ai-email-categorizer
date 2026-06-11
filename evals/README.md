@@ -14,7 +14,7 @@ export GEMINI_API_KEY=...
 
 ## Run
 
-From `src/`:
+From the repo root:
 
 ```sh
 # Direct model/provider comparison; regenerates ignored Promptfoo assets first

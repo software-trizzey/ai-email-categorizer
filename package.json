@@ -1,5 +1,5 @@
 {
-  "name": "src",
+  "name": "ai-email-categorizer",
   "scripts": {
     "dev": "bun run --hot src/index.ts",
     "generate:categorizer-response-format": "bun evals/generate-categorizer-response-format.ts",

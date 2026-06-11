@@ -2,6 +2,33 @@
 
 A system that ingests emails and categorizes them based on intent. To make this interesting i'm mapping it to a real world usecase where it will determine if the email is asking for a quote/estimate from a business. If the system confirms that's the sender's intent it will alert the admins of that business via their preferred notification channel (SMS, Slack. Discord, Email, etc.)
 
+## Development
+
+Install dependencies:
+
+```sh
+bun install
+```
+
+Run the app from the repo root:
+
+```sh
+bun run dev
+```
+
+Open http://localhost:3000.
+
+Run categorizer evals:
+
+```sh
+bun run eval:categorizer
+bun run eval:categorizer:service
+bun run eval:categorizer:view
+```
+
+For local service evals, start the app with `ENABLE_EVAL_ENDPOINTS=true bun run dev`, then run `bun run eval:categorizer:service`.
+
+See `evals/README.md` for provider API keys and filtering examples.
 
 ## System
 
