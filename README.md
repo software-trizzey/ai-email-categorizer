@@ -30,6 +30,51 @@ For local service evals, start the app with `ENABLE_EVAL_ENDPOINTS=true bun run 
 
 See `evals/README.md` for provider API keys and filtering examples.
 
+## Self-hosted Gemma on RunPod
+
+Recommended setup: run `google/gemma-4-E4B-it` behind vLLM's OpenAI-compatible API.
+
+On the RunPod pod, expose HTTP port `8000` and start vLLM:
+
+```sh
+export VLLM_API_KEY=your-secret-key
+
+vllm serve google/gemma-4-E4B-it \
+  --host 0.0.0.0 \
+  --port 8000 \
+  --max-model-len 8192 \
+  --gpu-memory-utilization 0.90 \
+  --limit-mm-per-prompt '{"image":0,"audio":0}' \
+  --api-key "$VLLM_API_KEY"
+```
+
+Then configure this app with the RunPod proxy URL. The base URL must end in `/v1`:
+
+```sh
+export CATEGORIZER_PROVIDER=self-hosted
+export CATEGORIZER_MODEL=google/gemma-4-E4B-it
+export CATEGORIZER_BASE_URL=https://<pod-id>-8000.proxy.runpod.net/v1
+export CATEGORIZER_API_KEY=your-secret-key
+export CATEGORIZER_MAX_TOKENS=256
+export CATEGORIZER_CONTEXT_WINDOW=8192
+```
+
+Quick checks:
+
+```sh
+curl "$CATEGORIZER_BASE_URL/chat/completions" \
+  -H "Authorization: Bearer $CATEGORIZER_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"google/gemma-4-E4B-it","messages":[{"role":"user","content":"Return JSON only: {\"ok\": true}"}],"temperature":0,"max_tokens":50,"response_format":{"type":"json_object"}}'
+
+ENABLE_EVAL_ENDPOINTS=true bun run dev
+curl http://localhost:3000/eval/categorize \
+  -H "Content-Type: application/json" \
+  -d '{"subject":"Need a quote for stump grinding","body":"Can you send an estimate to remove two stumps in my yard?"}'
+```
+
+If vLLM rejects an unknown `think` option from the self-hosted adapter, replace it with `chat_template_kwargs: { enable_thinking: false }` in `src/services/categorizer/model.ts`, or remove the option.
+
 ## System
 
 **Flow**

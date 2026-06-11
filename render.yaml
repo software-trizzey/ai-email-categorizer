@@ -12,6 +12,16 @@ services:
         value: production
       - key: OPENAI_API_KEY
         sync: false
+      - key: CATEGORIZER_PROVIDER
+        value: openai
+      - key: CATEGORIZER_MODEL
+        value: gpt-4o-mini
+      - key: CATEGORIZER_BASE_URL
+        sync: false
+      - key: CATEGORIZER_API_KEY
+        sync: false
+      - key: CATEGORIZER_MAX_TOKENS
+        sync: false
       - key: RESEND_API_KEY
         sync: false
       - key: RESEND_WEBHOOK_SECRET
