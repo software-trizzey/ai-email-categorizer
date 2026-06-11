@@ -1,4 +1,4 @@
-const serviceTypeDefinitions = require("../src/services/service-types.json");
+const serviceTypeDefinitions = require("../src/services/categorizer/service-types.json");
 
 const VALID_SERVICE_TYPE_IDS = new Set(Object.keys(serviceTypeDefinitions));
 

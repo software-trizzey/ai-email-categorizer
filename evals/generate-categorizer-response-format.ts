@@ -1,6 +1,6 @@
 import { writeFileSync } from "node:fs";
 
-import { categorizerPromptfooResponseFormat } from "../src/services/categorizer-contract";
+import { categorizerPromptfooResponseFormat } from "../src/services/categorizer/contract";
 
 const outputPath = new URL("./categorizer-response-format.json", import.meta.url);
 

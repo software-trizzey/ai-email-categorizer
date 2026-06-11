@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { isRecord } from "../../utils/object";
 import {
     serviceTypes,
     UNKNOWN_SERVICE_TYPE_ID,
@@ -45,11 +46,11 @@ export class CategorizerContractValidationError extends Error {
 }
 
 function withoutJsonSchemaMeta(schema: unknown): Record<string, unknown> {
-    if (!schema || typeof schema !== "object" || Array.isArray(schema)) {
+    if (!isRecord(schema)) {
         throw new Error("Categorizer JSON schema generation did not return an object");
     }
 
-    const { $schema: _schema, ...jsonSchema } = schema as Record<string, unknown>;
+    const { $schema: _schema, ...jsonSchema } = schema;
     return jsonSchema;
 }
 

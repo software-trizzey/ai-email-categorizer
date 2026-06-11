@@ -4,7 +4,7 @@ import {
     buildCategorizerUserPrompt,
     buildPromptfooCategorizerPrompt,
     CATEGORIZER_SYSTEM_PROMPT,
-} from "./categorizer-prompt";
+} from "./prompt";
 
 describe("categorizer prompt", () => {
     test("builds production user prompt from dynamic email data", () => {

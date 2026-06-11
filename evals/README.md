@@ -12,6 +12,20 @@ export ANTHROPIC_API_KEY=...
 export GEMINI_API_KEY=...
 ```
 
+For the real service path against local Ollama:
+
+```sh
+ollama pull gemma4:e4b
+ollama serve
+
+export CATEGORIZER_PROVIDER=self-hosted
+export CATEGORIZER_MODEL=gemma4:e4b
+export CATEGORIZER_BASE_URL=http://localhost:11434/v1
+export CATEGORIZER_API_KEY=ollama # dummy key for local Ollama's OpenAI-compatible endpoint
+export CATEGORIZER_MAX_TOKENS=1200
+export CATEGORIZER_EVAL_URL=http://localhost:3000/eval/categorize
+```
+
 ## Run
 
 From the repo root:
