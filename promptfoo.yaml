@@ -6,6 +6,27 @@ prompts:
 # Run with the provider filters below to keep costs low while iterating, e.g.
 # bun run eval:categorizer -- --filter-providers 'gpt-5-nano|claude-haiku-4-5|gemini-2.5-flash-lite'
 providers:
+  - id: ollama:chat:qwen3.5:9b
+    label: ollama/qwen3.5:9b
+    config:
+      temperature: 0
+      num_predict: 400
+      num_ctx: 4096
+      think: false
+      passthrough:
+        format: json
+        keep_alive: 0
+  - id: ollama:chat:gemma4:e4b
+    label: ollama/gemma4:e4b
+    config:
+      temperature: 0
+      num_predict: 400
+      num_ctx: 4096
+      think: false
+      passthrough:
+        format: json
+        keep_alive: 0
+
   # OpenAI
   - id: openai:gpt-4o-mini
     label: openai/gpt-4o-mini
