@@ -114,12 +114,14 @@ curl "$CATEGORIZER_BASE_URL/chat/completions" \
 JSON
 ```
 
-5. Smoke test through this app:
+5. Smoke test through the deployed app:
+
+Temporarily set `ENABLE_EVAL_ENDPOINTS=true` in Render and redeploy, then call the Render service URL to confirm the deployed app can reach the RunPod model:
 
 ```sh
-ENABLE_EVAL_ENDPOINTS=true bun run dev
+export RENDER_SERVICE_URL=https://<your-render-service>.onrender.com
 
-curl http://localhost:3000/eval/categorize \
+curl "$RENDER_SERVICE_URL/eval/categorize" \
   -H "Content-Type: application/json" \
   --data-binary @- <<'JSON'
 {
@@ -128,6 +130,8 @@ curl http://localhost:3000/eval/categorize \
 }
 JSON
 ```
+
+For local app testing against the same RunPod model, set the categorizer env vars locally and run `ENABLE_EVAL_ENDPOINTS=true bun run dev`, then call `http://localhost:3000/eval/categorize`.
 
 Disable `ENABLE_EVAL_ENDPOINTS` after testing public deployments.
 
