@@ -85,7 +85,7 @@ For local Jaeger, the traces endpoint is `http://localhost:4318/v1/traces`. For 
 
 ### PostHog analytics and OpenTelemetry production setup
 
-PostHog receives backend analytics events through `posthog-node` and traces through its general OTLP endpoint. You need a PostHog project and its **Project API Key / project token**. Do not use a personal API key.
+PostHog receives backend analytics events through `posthog-node` and AI categorizer traces through its AI Observability OTLP endpoint. You need a PostHog project and its **Project API Key / project token**. Do not use a personal API key.
 
 Pick the ingestion host for your PostHog region:
 - US cloud: `https://us.i.posthog.com`
@@ -97,13 +97,15 @@ Set these Render env vars and redeploy. Use standard OpenTelemetry env vars as t
 OTEL_ENABLED=true
 OTEL_SERVICE_NAME=ai-email-categorizer
 OTEL_DEPLOYMENT_ENVIRONMENT=production
-OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=https://us.i.posthog.com/i/v1/traces
+OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=https://us.i.posthog.com/i/v0/ai/otel
 OTEL_EXPORTER_OTLP_TRACES_HEADERS="Authorization=Bearer <ph_project_token>"
 POSTHOG_PROJECT_TOKEN=<ph_project_token>
 POSTHOG_HOST=https://us.i.posthog.com
 ```
 
-To test, temporarily set `ENABLE_EVAL_ENDPOINTS=true`, redeploy, run one `/eval/categorize` request, then look in PostHog Tracing for the `ai-email-categorizer` service and a `categorizer.run` span. Disable `ENABLE_EVAL_ENDPOINTS` after the smoke test.
+Privacy tradeoff: the app intentionally sends model/provider/token/result metadata and email subject/body lengths, but not the raw prompt, email subject, email body, raw model output, explanation text, or alert reason text. This keeps production telemetry useful for latency, cost, and categorization monitoring without sending inbound email content to PostHog. The tradeoff is that PostHog AI Observability will be metadata-heavy and will not show a rich conversation/generation preview. If raw AI content is ever enabled, it should be explicit opt-in, scrubbed before export, and covered by the right privacy/security review, including vendor DPA, retention, access controls, and region requirements.
+
+To test, temporarily set `ENABLE_EVAL_ENDPOINTS=true`, redeploy, run one `/eval/categorize` request, then look in PostHog AI Observability for the `ai-email-categorizer` service and a `categorizer.run` span/generation. Disable `ENABLE_EVAL_ENDPOINTS` after the smoke test.
 
 ### Option A: managed third-party setup (OpenAI)
 
