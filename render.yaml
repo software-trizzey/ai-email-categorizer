@@ -13,14 +13,16 @@ services:
       - key: OPENAI_API_KEY
         sync: false
       - key: CATEGORIZER_PROVIDER
-        value: openai
+        sync: false
       - key: CATEGORIZER_MODEL
-        value: gpt-4o-mini
+        sync: false
       - key: CATEGORIZER_BASE_URL
         sync: false
       - key: CATEGORIZER_API_KEY
         sync: false
       - key: CATEGORIZER_MAX_TOKENS
+        sync: false
+      - key: CATEGORIZER_CONTEXT_WINDOW
         sync: false
       - key: RESEND_API_KEY
         sync: false

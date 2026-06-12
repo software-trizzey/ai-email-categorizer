@@ -30,50 +30,108 @@ For local service evals, start the app with `ENABLE_EVAL_ENDPOINTS=true bun run 
 
 See `evals/README.md` for provider API keys and filtering examples.
 
-## Self-hosted Gemma on RunPod
+## Deployment
 
-Recommended setup: run `google/gemma-4-E4B-it` behind vLLM's OpenAI-compatible API.
+The categorizer model is selected with environment variables, so deployments can use either a third-party provider or a private self-hosted model.
 
-On the RunPod pod, expose HTTP port `8000` and start vLLM:
+### Option A: managed third-party setup (OpenAI)
+
+Use this for the simplest managed setup:
 
 ```sh
-export VLLM_API_KEY=your-secret-key
-
-vllm serve google/gemma-4-E4B-it \
-  --host 0.0.0.0 \
-  --port 8000 \
-  --max-model-len 8192 \
-  --gpu-memory-utilization 0.90 \
-  --limit-mm-per-prompt '{"image":0,"audio":0}' \
-  --api-key "$VLLM_API_KEY"
+CATEGORIZER_PROVIDER=openai
+CATEGORIZER_MODEL=gpt-4o-mini
+OPENAI_API_KEY=<openai-api-key>
 ```
 
-Then configure this app with the RunPod proxy URL. The base URL must end in `/v1`:
+`CATEGORIZER_BASE_URL` and `CATEGORIZER_API_KEY` can be left blank for the default OpenAI endpoint.
+
+### Option B: Self-hosted Gemma on RunPod
+
+Recommended private setup: run `google/gemma-4-E4B-it` behind vLLM's OpenAI-compatible API.
+
+Note: this vllm latest template was used: https://www.console.runpod.io/hub/template/vllm-latest?id=iqilnw0ymf
+
+1. Create a RunPod pod with a 24GB+ VRAM GPU for testing, expose HTTP port `8000`, and add a pod env var:
 
 ```sh
-export CATEGORIZER_PROVIDER=self-hosted
-export CATEGORIZER_MODEL=google/gemma-4-E4B-it
-export CATEGORIZER_BASE_URL=https://<pod-id>-8000.proxy.runpod.net/v1
-export CATEGORIZER_API_KEY=your-secret-key
-export CATEGORIZER_MAX_TOKENS=256
-export CATEGORIZER_CONTEXT_WINDOW=8192
+VLLM_API_KEY=<private-api-key>
+```
+Note: for production this should be set as a runpod secret and read securely: https://docs.runpod.io/pods/templates/secrets
+
+Generate a local key with:
+
+```sh
+echo "sk-$(openssl rand -hex 32)"
 ```
 
-Quick checks:
+2. Start vLLM on the RunPod pod. If your template already prepends `vllm serve`, use only the args after `serve`.
+
+The template I used expected this format
+```sh
+--host=0.0.0.0 --port=8000 --model=google/gemma-4-E4B-it --dtype=bfloat16 --trust-remote-code --enforce-eager --gpu-memory-utilization=0.95 --max-model-len=8192
+```
+
+3. Configure this app/Render service. The base URL must end in `/v1`:
 
 ```sh
+CATEGORIZER_PROVIDER=self-hosted
+CATEGORIZER_MODEL=google/gemma-4-E4B-it
+CATEGORIZER_BASE_URL=https://<pod-id>-8000.proxy.runpod.net/v1
+CATEGORIZER_API_KEY=<same-value-as-VLLM_API_KEY>
+CATEGORIZER_MAX_TOKENS=400
+CATEGORIZER_CONTEXT_WINDOW=8192
+```
+
+In Render, keep these values dashboard-managed. `render.yaml` marks the categorizer env vars as `sync: false` so pushes do not overwrite provider/model/endpoint choices.
+
+4. Smoke test vLLM directly:
+
+```sh
+curl "$CATEGORIZER_BASE_URL/models" \
+  -H "Authorization: Bearer $CATEGORIZER_API_KEY"
+
 curl "$CATEGORIZER_BASE_URL/chat/completions" \
   -H "Authorization: Bearer $CATEGORIZER_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"model":"google/gemma-4-E4B-it","messages":[{"role":"user","content":"Return JSON only: {\"ok\": true}"}],"temperature":0,"max_tokens":50,"response_format":{"type":"json_object"}}'
-
-ENABLE_EVAL_ENDPOINTS=true bun run dev
-curl http://localhost:3000/eval/categorize \
-  -H "Content-Type: application/json" \
-  -d '{"subject":"Need a quote for stump grinding","body":"Can you send an estimate to remove two stumps in my yard?"}'
+  --data-binary @- <<'JSON'
+{
+  "model": "google/gemma-4-E4B-it",
+  "temperature": 0,
+  "max_tokens": 400,
+  "response_format": { "type": "json_object" },
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are an email categorization specialist that reviews inbound emails and determines their intent. Return only valid JSON."
+    },
+    {
+      "role": "user",
+      "content": "Determine if this email is asking for a quote. Valid serviceTypeId values are stumpGrinding, stumpRemoval, rootRemoval, treePruning, unknown. Return JSON with explanation, serviceTypeId, confidenceScore, shouldAlertAdmin, and alertReason. Subject: Need a quote for stump grinding\nEmail Body: Hi, I have two old tree stumps in my backyard. Can you send me an estimate to grind them below grade next week?"
+    }
+  ]
+}
+JSON
 ```
 
-If vLLM rejects an unknown `think` option from the self-hosted adapter, replace it with `chat_template_kwargs: { enable_thinking: false }` in `src/services/categorizer/model.ts`, or remove the option.
+5. Smoke test through this app:
+
+```sh
+ENABLE_EVAL_ENDPOINTS=true bun run dev
+
+curl http://localhost:3000/eval/categorize \
+  -H "Content-Type: application/json" \
+  --data-binary @- <<'JSON'
+{
+  "subject": "Need a quote for stump grinding",
+  "body": "Hi, I have two old tree stumps in my backyard. Can you send me an estimate to grind them below grade next week?"
+}
+JSON
+```
+
+Disable `ENABLE_EVAL_ENDPOINTS` after testing public deployments.
+
+For end-to-end testing and initial production wiring, a RunPod pod is the simplest option because it provides a stable OpenAI-compatible `/v1` endpoint. If request volume stays sporadic and minimal throughout the month, switch to RunPod Serverless with `min workers = 0` to avoid paying for an idle 24/7 GPU. Serverless may require using a vLLM/OpenAI-compatible serverless template or adding a small adapter that calls RunPod's job API and waits for the result.
 
 ## System
 
