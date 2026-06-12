@@ -7,11 +7,18 @@ import {
   ATTR_SERVICE_VERSION,
 } from '@opentelemetry/semantic-conventions'
 
+import { getOptionalEnv } from '../utils/env'
 import { logError, logInfo } from '../utils/logger'
 
 const DEFAULT_SERVICE_NAME = 'ai-email-categorizer'
 const DEFAULT_SERVICE_VERSION = '0.0.0'
 const DEFAULT_DEPLOYMENT_ENVIRONMENT = 'development'
+
+type TraceExporterConfig = {
+  exporter: OTLPTraceExporter
+  name: string
+  endpoint?: string
+}
 
 let telemetrySdk: NodeSDK | undefined
 let isShutdownStarted = false
@@ -25,11 +32,13 @@ export function startTelemetry(): void {
     return
   }
 
-  const serviceName = process.env.OTEL_SERVICE_NAME?.trim() || DEFAULT_SERVICE_NAME
-  const serviceVersion = process.env.OTEL_SERVICE_VERSION?.trim() || DEFAULT_SERVICE_VERSION
-  const deploymentEnvironment = process.env.OTEL_DEPLOYMENT_ENVIRONMENT?.trim()
-    || process.env.NODE_ENV?.trim()
-    || DEFAULT_DEPLOYMENT_ENVIRONMENT
+  const serviceName = getOptionalEnv('OTEL_SERVICE_NAME') ?? DEFAULT_SERVICE_NAME
+  const serviceVersion = getOptionalEnv('OTEL_SERVICE_VERSION') ?? DEFAULT_SERVICE_VERSION
+  const deploymentEnvironment = getOptionalEnv('OTEL_DEPLOYMENT_ENVIRONMENT')
+    ?? getOptionalEnv('NODE_ENV')
+    ?? DEFAULT_DEPLOYMENT_ENVIRONMENT
+
+  const traceExporterConfig = createTraceExporter()
 
   telemetrySdk = new NodeSDK({
     resource: resourceFromAttributes({
@@ -37,7 +46,7 @@ export function startTelemetry(): void {
       [ATTR_SERVICE_VERSION]: serviceVersion,
       [ATTR_DEPLOYMENT_ENVIRONMENT_NAME]: deploymentEnvironment,
     }),
-    traceExporter: new OTLPTraceExporter(),
+    traceExporter: traceExporterConfig.exporter,
     instrumentations: [],
     metricReaders: [],
     logRecordProcessors: [],
@@ -49,31 +58,31 @@ export function startTelemetry(): void {
     serviceName,
     serviceVersion,
     deploymentEnvironment,
-  })
-
-  process.once('SIGTERM', () => {
-    void shutdownTelemetry('SIGTERM')
-  })
-
-  process.once('SIGINT', () => {
-    void shutdownTelemetry('SIGINT')
+    exporter: traceExporterConfig.name,
+    endpoint: traceExporterConfig.endpoint ?? 'otel-env-or-default',
   })
 }
 
-async function shutdownTelemetry(signal: 'SIGTERM' | 'SIGINT'): Promise<void> {
-  if (isShutdownStarted) {
-    return
+function createTraceExporter(): TraceExporterConfig {
+  return {
+    exporter: new OTLPTraceExporter(),
+    name: 'otlp-http',
+    endpoint: getOptionalEnv('OTEL_EXPORTER_OTLP_TRACES_ENDPOINT')
+      ?? getOptionalEnv('OTEL_EXPORTER_OTLP_ENDPOINT'),
   }
+}
+
+export async function shutdownTelemetry(signal: 'SIGTERM' | 'SIGINT'): Promise<void> {
+  if (isShutdownStarted || !telemetrySdk) return
 
   isShutdownStarted = true
 
   try {
-    await telemetrySdk?.shutdown()
+    await telemetrySdk.shutdown()
     logInfo('OpenTelemetry tracing stopped', { signal })
   } catch (error: unknown) {
     logError('Failed to shut down OpenTelemetry tracing', error, { signal })
-  } finally {
-    process.exit(0)
+    throw error
   }
 }
 

@@ -66,7 +66,7 @@ The categorizer model is selected with environment variables, so deployments can
 
 ### OpenTelemetry on Render
 
-Telemetry can be enabled in Render through environment variables only; no code changes are needed. Keep tracing off by default, then add these dashboard-managed values when you have an OTLP-compatible backend ready:
+Telemetry can be enabled in Render through environment variables only. Keep tracing off by default, then add these dashboard-managed values when you have an OTLP-compatible backend ready:
 
 ```sh
 OTEL_ENABLED=true
@@ -82,6 +82,28 @@ OTEL_EXPORTER_OTLP_HEADERS=<provider-specific-headers>
 ```
 
 For local Jaeger, the traces endpoint is `http://localhost:4318/v1/traces`. For hosted providers, use the vendor's OTLP HTTP traces endpoint.
+
+### PostHog analytics and OpenTelemetry production setup
+
+PostHog receives backend analytics events through `posthog-node` and traces through its general OTLP endpoint. You need a PostHog project and its **Project API Key / project token**. Do not use a personal API key.
+
+Pick the ingestion host for your PostHog region:
+- US cloud: `https://us.i.posthog.com`
+- EU cloud: `https://eu.i.posthog.com`
+
+Set these Render env vars and redeploy. Use standard OpenTelemetry env vars as the single source of truth for tracing:
+
+```sh
+OTEL_ENABLED=true
+OTEL_SERVICE_NAME=ai-email-categorizer
+OTEL_DEPLOYMENT_ENVIRONMENT=production
+OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=https://us.i.posthog.com/i/v1/traces
+OTEL_EXPORTER_OTLP_TRACES_HEADERS="Authorization=Bearer <ph_project_token>"
+POSTHOG_PROJECT_TOKEN=<ph_project_token>
+POSTHOG_HOST=https://us.i.posthog.com
+```
+
+To test, temporarily set `ENABLE_EVAL_ENDPOINTS=true`, redeploy, run one `/eval/categorize` request, then look in PostHog Tracing for the `ai-email-categorizer` service and a `categorizer.run` span. Disable `ENABLE_EVAL_ENDPOINTS` after the smoke test.
 
 ### Option A: managed third-party setup (OpenAI)
 

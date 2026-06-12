@@ -8,6 +8,7 @@ import {
     recordCategorizerPromptError,
     withCategorizerRunSpan,
 } from "../../observability/categorizer";
+import { capturePostHogEvent } from "../../observability/posthog";
 import { logError, logInfo, logWarn } from "../../utils/logger";
 import {
     buildCategorizerRequestOptions,
@@ -138,6 +139,18 @@ export async function categorizeEmail(
             errorMessage: response.errorMessage,
             contentBlockCount: response.content.length,
             alertReason,
+        });
+
+        capturePostHogEvent({
+            distinctId: 'ai-email-categorizer',
+            event: 'categorizer_fallback_result',
+            properties: {
+                provider,
+                model_id: modelId,
+                stop_reason: response.stopReason,
+                has_model_error: Boolean(response.errorMessage),
+                source: getCategorizerMetadataSource(email.metadata) ?? 'unknown',
+            },
         });
 
         return safeResult;

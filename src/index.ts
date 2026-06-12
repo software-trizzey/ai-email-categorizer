@@ -1,7 +1,8 @@
 import { Hono } from 'hono'
 import type { WebhookEventPayload } from 'resend'
 
-import { startTelemetry } from './observability/tracing'
+import { capturePostHogEvent, capturePostHogException, shutdownPostHog } from './observability/posthog'
+import { shutdownTelemetry, startTelemetry } from './observability/tracing'
 import { categorizeEmail, CategorizerTrafficSource } from './services/categorizer'
 import { processInboundEmail } from './services/inbound-email'
 import { verifyResendWebhook } from './services/resend-webhook'
@@ -10,10 +11,17 @@ import { logError, logInfo } from './utils/logger'
 
 startTelemetry()
 
+process.once('SIGTERM', () => { void shutdownApplication('SIGTERM') })
+process.once('SIGINT', () => { void shutdownApplication('SIGINT') })
+
 const app = new Hono()
 
 app.onError((error, context) => {
   logError("Unhandled request error", error, {
+    method: context.req.method,
+    path: context.req.path,
+  });
+  capturePostHogException(error, undefined, {
     method: context.req.method,
     path: context.req.path,
   });
@@ -76,6 +84,16 @@ app.post('/eval/categorize', async (context) => {
     }, 500);
   }
 
+  capturePostHogEvent({
+    distinctId: 'ai-email-categorizer',
+    event: 'eval_email_categorized',
+    properties: {
+      service_type_id: result.serviceTypeId,
+      confidence_score: result.confidenceScore,
+      should_alert_admin: result.shouldAlertAdmin,
+    },
+  });
+
   return context.json({
     ok: true,
     status: 200,
@@ -116,8 +134,14 @@ app.post('/inbound-email', async (context) => {
   const emailId = verificationResult.data.email_id;
   logInfo("Inbound email webhook accepted", { emailId });
 
+  capturePostHogEvent({
+    distinctId: emailId,
+    event: 'inbound_email_received',
+  });
+
   runAfterResponse(context, processInboundEmail(emailId).catch((error) => {
     logError("Failed to process inbound email", error, { emailId });
+    capturePostHogException(error, emailId, { email_id: emailId });
   }));
 
   return context.json({
@@ -126,5 +150,25 @@ app.post('/inbound-email', async (context) => {
     message: "Webhook accepted"
   });
 });
+
+let isShutdownStarted = false
+
+async function shutdownApplication(signal: 'SIGTERM' | 'SIGINT'): Promise<void> {
+  if (isShutdownStarted) return
+
+  isShutdownStarted = true
+  const results = await Promise.allSettled([
+    shutdownTelemetry(signal),
+    shutdownPostHog(),
+  ])
+
+  for (const result of results) {
+    if (result.status === 'rejected') {
+      logError('Failed to complete graceful shutdown task', result.reason, { signal })
+    }
+  }
+
+  process.exit(0)
+}
 
 export default app

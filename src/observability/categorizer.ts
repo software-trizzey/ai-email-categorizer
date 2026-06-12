@@ -26,6 +26,10 @@ export function withCategorizerRunSpan<T>(
       'categorizer.request.model': input.requestedModel,
       'categorizer.base_url_host': getSafeBaseUrlHost(input.baseUrl),
       'categorizer.email.subject_length': input.subject.length,
+      'gen_ai.operation.name': 'chat',
+      'gen_ai.provider.name': input.provider,
+      'gen_ai.request.model': input.requestedModel,
+      'server.address': getSafeBaseUrlHost(input.baseUrl),
       'categorizer.email.body_length': input.body.length,
     }),
   }, async (span) => {
@@ -52,6 +56,11 @@ export function recordCategorizerModelResponse(span: Span, response: AssistantMe
     'categorizer.usage.cache_write_tokens': response.usage?.cacheWrite,
     'categorizer.usage.total_tokens': response.usage?.totalTokens,
     'categorizer.usage.estimated_cost_usd': response.usage?.cost?.total,
+    'gen_ai.provider.name': response.provider,
+    'gen_ai.response.model': response.responseModel ?? response.model,
+    'gen_ai.usage.input_tokens': response.usage?.input,
+    'gen_ai.usage.output_tokens': response.usage?.output,
+    'gen_ai.usage.total_tokens': response.usage?.totalTokens,
   }))
 
   if (hasModelError) {

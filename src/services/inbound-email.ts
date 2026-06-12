@@ -2,6 +2,7 @@ import { categorizeEmail, CategorizerTrafficSource } from './categorizer'
 import { claimIdempotencyKey, markIdempotencyKeyProcessed, releaseIdempotencyKey } from './idempotency'
 import { resend } from './resend-client'
 import { sendNotification } from './notification'
+import { capturePostHogEvent } from '../observability/posthog'
 import { redactPii, sanitizeEmailBody } from '../utils/pii'
 import { logInfo } from '../utils/logger'
 
@@ -13,6 +14,13 @@ export async function processInboundEmail(emailId: string): Promise<void> {
         logInfo("Skipping duplicate inbound email processing", {
             emailId,
             existingStatus: claimResult.existingStatus,
+        });
+        capturePostHogEvent({
+            distinctId: emailId,
+            event: 'email_processing_skipped',
+            properties: {
+                existing_status: claimResult.existingStatus,
+            },
         });
         return;
     }
@@ -41,6 +49,17 @@ export async function processInboundEmail(emailId: string): Promise<void> {
             throw new Error("There was a problem categorizing the email");
         }
     
+        capturePostHogEvent({
+            distinctId: emailId,
+            event: 'email_categorized',
+            properties: {
+                service_type_id: categorizationResult.serviceTypeId,
+                service_type_label: categorizationResult.serviceType.label,
+                confidence_score: categorizationResult.confidenceScore,
+                should_alert_admin: categorizationResult.shouldAlertAdmin,
+            },
+        });
+
         if (categorizationResult.shouldAlertAdmin === true) {
             logInfo("Sending alert to subscribed admins", {
                 emailId,
@@ -56,6 +75,16 @@ export async function processInboundEmail(emailId: string): Promise<void> {
             await sendNotification("discord", {
                 title: "New estimate request received",
                 data: quoteData,
+            });
+
+            capturePostHogEvent({
+                distinctId: emailId,
+                event: 'admin_alert_sent',
+                properties: {
+                    service_type_id: categorizationResult.serviceTypeId,
+                    service_type_label: categorizationResult.serviceType.label,
+                    notification_channel: 'discord',
+                },
             });
         } else {
             logInfo("Categorizer result did not require an admin alert", {
