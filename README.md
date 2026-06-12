@@ -30,9 +30,58 @@ For local service evals, start the app with `ENABLE_EVAL_ENDPOINTS=true bun run 
 
 See `evals/README.md` for provider API keys and filtering examples.
 
+### OpenTelemetry local smoke test
+
+Tracing is disabled by default. To verify categorizer spans locally with Jaeger:
+
+```sh
+docker run --rm --name jaeger \
+  -e COLLECTOR_OTLP_ENABLED=true \
+  -p 16686:16686 \
+  -p 4318:4318 \
+  jaegertracing/all-in-one:1.57
+```
+
+In another terminal, run the app with tracing and eval endpoints enabled:
+
+```sh
+OTEL_ENABLED=true \
+ENABLE_EVAL_ENDPOINTS=true \
+OTEL_SERVICE_NAME=ai-email-categorizer \
+OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://localhost:4318/v1/traces \
+bun run dev
+```
+
+Then trigger one service eval:
+
+```sh
+bun run eval:categorizer:service -- --filter-first-n 1
+```
+
+Open http://localhost:16686 and search for the `ai-email-categorizer` service. You should see a `categorizer.run` span with provider/model/token/result metadata. Spans intentionally record email subject/body lengths, not subject text, body text, prompt text, raw model output, or alert explanations.
+
 ## Deployment
 
 The categorizer model is selected with environment variables, so deployments can use either a third-party provider or a private self-hosted model.
+
+### OpenTelemetry on Render
+
+Telemetry can be enabled in Render through environment variables only; no code changes are needed. Keep tracing off by default, then add these dashboard-managed values when you have an OTLP-compatible backend ready:
+
+```sh
+OTEL_ENABLED=true
+OTEL_SERVICE_NAME=ai-email-categorizer
+OTEL_DEPLOYMENT_ENVIRONMENT=production
+OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=<provider-otlp-http-traces-endpoint>
+```
+
+If your observability provider requires authentication, set the standard OpenTelemetry exporter headers variable in Render as well. See the OpenTelemetry [OTLP exporter header configuration docs](https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/#header-configuration) for the expected key-value format.
+
+```sh
+OTEL_EXPORTER_OTLP_HEADERS=<provider-specific-headers>
+```
+
+For local Jaeger, the traces endpoint is `http://localhost:4318/v1/traces`. For hosted providers, use the vendor's OTLP HTTP traces endpoint.
 
 ### Option A: managed third-party setup (OpenAI)
 

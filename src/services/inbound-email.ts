@@ -1,4 +1,4 @@
-import { categorizeEmail } from './categorizer'
+import { categorizeEmail, CategorizerTrafficSource } from './categorizer'
 import { claimIdempotencyKey, markIdempotencyKeyProcessed, releaseIdempotencyKey } from './idempotency'
 import { resend } from './resend-client'
 import { sendNotification } from './notification'
@@ -32,6 +32,7 @@ export async function processInboundEmail(emailId: string): Promise<void> {
         const emailToCategorize = {
             subject: redactPii(email.subject),
             body: sanitizeEmailBody(email.text || ''),
+            metadata: { source: CategorizerTrafficSource.InboundEmail },
         };
 
         const categorizationResult = await categorizeEmail(emailToCategorize);

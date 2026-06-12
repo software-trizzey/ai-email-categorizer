@@ -1,11 +1,14 @@
 import { Hono } from 'hono'
 import type { WebhookEventPayload } from 'resend'
 
-import { categorizeEmail } from './services/categorizer'
+import { startTelemetry } from './observability/tracing'
+import { categorizeEmail, CategorizerTrafficSource } from './services/categorizer'
 import { processInboundEmail } from './services/inbound-email'
 import { verifyResendWebhook } from './services/resend-webhook'
 import { runAfterResponse } from './utils/background'
 import { logError, logInfo } from './utils/logger'
+
+startTelemetry()
 
 const app = new Hono()
 
@@ -59,7 +62,11 @@ app.post('/eval/categorize', async (context) => {
     }, 400);
   }
 
-  const result = await categorizeEmail({ subject, body });
+  const result = await categorizeEmail({
+    subject,
+    body,
+    metadata: { source: CategorizerTrafficSource.EvalEndpoint },
+  });
 
   if (!result) {
     return context.json({

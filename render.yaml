@@ -24,6 +24,18 @@ services:
         sync: false
       - key: CATEGORIZER_CONTEXT_WINDOW
         sync: false
+      - key: OTEL_ENABLED
+        sync: false
+      - key: OTEL_SERVICE_NAME
+        sync: false
+      - key: OTEL_SERVICE_VERSION
+        sync: false
+      - key: OTEL_DEPLOYMENT_ENVIRONMENT
+        sync: false
+      - key: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+        sync: false
+      - key: OTEL_EXPORTER_OTLP_HEADERS
+        sync: false
       - key: RESEND_API_KEY
         sync: false
       - key: RESEND_WEBHOOK_SECRET
