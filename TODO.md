@@ -6,7 +6,7 @@ A simple "roadmap" of tasks and ideas I have for this project.
 - [x] Add promptfoo with concise eval suite to confirm model behavior
 - [ ] Add OpenTelemetry for vendor neutral visibility into model usage. 
 - [x] Setup local model (Ollama) and compare results against foundational providers using promptfoo
-- [ ] Deploy self-hosted model for end-to-end private
+- [x] Deploy self-hosted model for end-to-end private
 
 ## evaluation suite
 
@@ -58,5 +58,5 @@ Reviewed setup first: the app is a Bun + Hono TypeScript service at the repo roo
 
 ### Provider/model comparison
 
-- [ ] Add more model selection options through config/env so production and evals can easily switch provider/model pairs.
-- [ ] Expand Promptfoo provider matrix with additional viable low-cost models, including local/Ollama once available.
+- [x] Add more model selection options through config/env so production and evals can easily switch provider/model pairs.
+- [x] Expand Promptfoo provider matrix with additional viable low-cost models, including local/Ollama once available.
