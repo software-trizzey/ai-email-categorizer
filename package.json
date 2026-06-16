@@ -1,5 +1,6 @@
 {
   "name": "ai-email-categorizer",
+  "license": "MIT",
   "scripts": {
     "dev": "bun run --hot src/index.ts",
     "generate:categorizer-response-format": "bun evals/generate-categorizer-response-format.ts",

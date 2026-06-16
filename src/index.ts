@@ -37,7 +37,7 @@ app.get('/health', (context) => {
     return context.json({
       ok: true, 
       status: 200,
-      meessage: "Service up"
+      message: "Service up"
     });
 })
 
