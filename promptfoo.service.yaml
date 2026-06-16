@@ -1,0 +1,19 @@
+description: Email categorizer - local service accuracy check
+
+# Evaluates the real categorizer service over HTTP.
+# Start the app first: ENABLE_EVAL_ENDPOINTS=true bun run dev
+prompts:
+  - "{{subject}}\n\n{{body}}"
+
+providers:
+  - id: exec:bun evals/call-categorizer-target.ts
+    label: localhost:3000/eval/categorize
+    config:
+      url: http://localhost:3000/eval/categorize
+
+defaultTest:
+  assert:
+    - type: javascript
+      value: file://evals/assert-categorization.js
+
+tests: file://evals/categorizer-tests.csv

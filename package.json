@@ -1,0 +1,30 @@
+{
+  "name": "ai-email-categorizer",
+  "scripts": {
+    "dev": "bun run --hot src/index.ts",
+    "generate:categorizer-response-format": "bun evals/generate-categorizer-response-format.ts",
+    "generate:categorizer-prompt": "bun evals/generate-categorizer-prompt.ts",
+    "generate:categorizer-eval-assets": "bun run generate:categorizer-response-format && bun run generate:categorizer-prompt",
+    "check:categorizer-eval-assets": "bun evals/check-categorizer-eval-assets.ts",
+    "eval:categorizer": "bun run generate:categorizer-eval-assets && bun run check:categorizer-eval-assets && promptfoo eval -c promptfoo.yaml",
+    "eval:categorizer:promptfoo": "bun run check:categorizer-eval-assets && promptfoo eval -c promptfoo.yaml",
+    "eval:categorizer:service": "promptfoo eval -c promptfoo.service.yaml",
+    "eval:categorizer:view": "promptfoo view"
+  },
+  "dependencies": {
+    "@earendil-works/pi-ai": "^0.78.1",
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.219.0",
+    "@opentelemetry/resources": "^2.8.0",
+    "@opentelemetry/sdk-node": "^0.219.0",
+    "@opentelemetry/semantic-conventions": "^1.41.1",
+    "hono": "^4.12.23",
+    "posthog-node": "^5.37.0",
+    "resend": "^6.12.4",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "promptfoo": "^0.121.15"
+  }
+}

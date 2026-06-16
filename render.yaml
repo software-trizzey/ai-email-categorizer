@@ -1,0 +1,50 @@
+services:
+  - type: web
+    name: ai-email-categorizer
+    runtime: node
+    plan: starter
+    autoDeploy: true
+    healthCheckPath: /health
+    buildCommand: bun install --frozen-lockfile
+    startCommand: bun run --port $PORT src/index.ts
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: CATEGORIZER_PROVIDER
+        sync: false
+      - key: CATEGORIZER_MODEL
+        sync: false
+      - key: CATEGORIZER_BASE_URL
+        sync: false
+      - key: CATEGORIZER_API_KEY
+        sync: false
+      - key: CATEGORIZER_MAX_TOKENS
+        sync: false
+      - key: CATEGORIZER_CONTEXT_WINDOW
+        sync: false
+      - key: OTEL_ENABLED
+        sync: false
+      - key: OTEL_SERVICE_NAME
+        sync: false
+      - key: OTEL_SERVICE_VERSION
+        sync: false
+      - key: OTEL_DEPLOYMENT_ENVIRONMENT
+        sync: false
+      - key: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+        sync: false
+      - key: OTEL_EXPORTER_OTLP_HEADERS
+        sync: false
+      - key: OTEL_EXPORTER_OTLP_TRACES_HEADERS
+        sync: false
+      - key: POSTHOG_PROJECT_TOKEN
+        sync: false
+      - key: POSTHOG_HOST
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_WEBHOOK_SECRET
+        sync: false
+      - key: DISCORD_WEBHOOK_URL
+        sync: false
